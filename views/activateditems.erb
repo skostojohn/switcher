@@ -1,0 +1,18 @@
+<h4>Workflow Rules</h4>
+<table>
+  <% @workflow_rules.each do |wrule| %>
+    <tr><td width="300px"><%= wrule.name %></td><td><%= wrule.status %></td></tr>
+  <% end %>
+</table>
+<h4>Validation Rules</h4>
+<table>
+  <% @validation_rules.each do |vrule| %>
+    <tr><td width="300px"><%= vrule.name %></td><td><%= vrule.status %></td></tr>
+  <% end %>
+</table>
+<h4>Process Builders</h4>
+<table>
+  <% @process_builders.each do |pb| %>
+    <tr><td width="300px"><%= pb.name %></td><td><%= pb.status %></td></tr>
+  <% end %>
+</table>

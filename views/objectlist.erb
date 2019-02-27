@@ -1,0 +1,10 @@
+<h3>Available Objects</h3>
+<form action= "/automationlist" method="post">
+<table>
+<% @object_list.each do |object| %>
+  <tr><td><input class="objectlist" type="radio" name="selected_object" value="<%= object.MasterLabel %>" id="<%=object.MasterLabel %>">
+  <label class="objectlist" for="<%= object.MasterLabel %>"><%= object.MasterLabel %></label></td></tr>
+<% end %>
+</table>
+<input type="submit" value="View Automation" id="ViewAutomationButton" />
+</form>

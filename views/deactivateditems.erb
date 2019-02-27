@@ -1,0 +1,24 @@
+<form action= "/activated" method="post">
+  <h4>Deactivated Workflow Rules</h4>
+  <table>
+  <% @workflow_rules.each do |wrule| %>
+  <tr><td><input class="objectlist" type="checkbox" name="selected_wr[]" value="<%= wrule.sfdc_id %>" id="<%=wrule.sfdc_id %>" checked>
+  <label class="objectlist" for="<%=wrule.sfdc_id %>"><%= wrule.name %></label></td></tr>
+  <% end %>
+  </table>
+  <h4>Deactivated Validation Rules</h4>
+  <table>
+  <% @validation_rules.each do |vrule| %>
+  <tr><td><input class="objectlist" type="checkbox" name="selected_vr[]" value="<%= vrule.sfdc_id %>" id="<%=vrule.sfdc_id %>" checked>
+  <label class="objectlist" for="<%=vrule.sfdc_id %>"><%= vrule.name%></label></td></tr>
+  <% end %>
+  </table>
+  <h4>Deactivated Process Builders</h4>
+  <table>
+  <% @process_builders.each do |pb| %>
+  <tr><td><input class="objectlist" type="checkbox" name="selected_pb[]" value="<%= pb.sfdc_id %>" id="<%=pb.sfdc_id %>" checked>
+  <label class="objectlist" for="<%=pb.sfdc_id %>"><%= pb.name%></label></td></tr>
+  <% end %>
+  </table>
+  <input type="submit" value="Reactivate Selected Items" id="ReactivateButton" />
+</form>

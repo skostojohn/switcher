@@ -1,0 +1,29 @@
+body {
+  font-family: "Helvetica";
+}
+
+h1 {
+  font-family: "Helvetica";
+}
+
+p {
+  font-size:75%;
+}
+
+td {
+  font-size:75%;
+}
+
+#spinner {
+  position: relative;
+  height: 150px;
+}
+
+#button {
+  height: 50px;
+}
+
+#button .small {
+  position: relative;
+  top: 50%;
+}

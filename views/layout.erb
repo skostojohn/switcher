@@ -1,0 +1,11 @@
+<head>
+<link href="/css/style.css" rel="stylesheet" type="text/css">
+<link href="/css/spin.css" rel="stylesheet" type="text/css">
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+</head>
+<body>
+<h1>The Switcher<%= " - #{@curr_env}" unless @curr_env.nil? %></h1>
+<%= yield %>
+<script src="/js/spin.js" type="text/javascript"></script>
+<script src="/js/switcher.js" type="text/javascript"></script>
+</body>

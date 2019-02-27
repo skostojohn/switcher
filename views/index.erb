@@ -1,0 +1,10 @@
+<h3>Choose your environment</h3>
+<form action= "/objectlist" method="post">
+  <table>
+  <% @environments.each do |environment| %>
+      <tr><td><input type="radio" name="environment" value="<%= environment %>" id="<%= environment %>" checked>
+      <label class="objectlist" for="<%= environment %>"><%= environment %></label></td></tr>
+  <% end %>
+  </table>
+  <input class="small" type="submit" value="Select Environment" id="EnvironmentButton" />
+</form>
