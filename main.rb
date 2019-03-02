@@ -6,133 +6,10 @@ require 'restforce'
 require 'yaml'
 require 'xmlsimple'
 require 'cgi'
-# require 'sqlite3'
-require 'sequel'
-
-class FetchWorkflowRuleWorker
-  include SuckerPunch::Job
-  autoload(:Item, './models/item.rb')
-
-  def perform(job, client, object)
-    wruleids = client.query("select id from workflowrule where tableenumorid = '#{object}'")
-    wrules = []
-    wruleids.each do |wruleid|
-      curr_rule = client.find('WorkflowRule', wruleid.Id)
-      next unless curr_rule.Metadata['active']
-      wrules.push(curr_rule)
-      item = Item.new(type: 'WorkflowRule', job_id: job.id, sfdc_id: curr_rule.Id, created: DateTime.now,
-                      name: curr_rule.Name, obj_hash: curr_rule.to_hash.to_json, status: 'active')
-      item.save
-    end
-    job[:wr_status] = 'Complete'
-    job.save
-  end
-end
-
-class FetchValidationRuleWorker
-  include SuckerPunch::Job
-  autoload(:Item, './models/item.rb')
-
-  def perform(job, client, object)
-    vruleids = client.query("select id from validationrule where entitydefinitionid = '#{object}'")
-    vrules = []
-    vruleids.each do |vruleid|
-      curr_rule = client.find('ValidationRule', vruleid.Id)
-      next unless curr_rule.Metadata['active']
-      vrules.push(curr_rule)
-      item = Item.new(type: 'ValidationRule', job_id: job.id, sfdc_id: curr_rule.Id, created: DateTime.now,
-                      name: curr_rule.ValidationName, obj_hash: curr_rule.to_hash.to_json, status: 'active')
-      item.save
-    end
-    job[:vr_status] = 'Complete'
-    job.save
-  end
-end
-
-class FetchProcessBuilderWorker
-  include SuckerPunch::Job
-  autoload(:Item, './models/item.rb')
-
-  def perform(job, client, object)
-    active_flow_defs = client.query('select Id, ActiveVersionId from FlowDefinition where ActiveVersionId != null')
-    process_builders = []
-    active_flow_defs.each do |flow_def|
-      curr_flow = client.find('Flow', flow_def.ActiveVersionId)
-      next unless curr_flow.Metadata['processType'] == 'Workflow' && curr_flow.Metadata['processMetadataValues'].select { |x| x.name == 'ObjectType' }[0]['value']['stringValue'] == object
-      process_builders.push(curr_flow) 
-      item = Item.new(type: 'ProcessBuilder', job_id: job.id, sfdc_id: curr_flow.Id, created: DateTime.now,
-                      name: curr_flow.Metadata['label'], obj_hash: curr_flow.to_hash.to_json, status: 'active')
-      item.save
-    end
-    job[:pb_status] = 'Complete'
-    job.save
-  end
-end
-
-class UpdateWorkflowRuleWorker
-  include SuckerPunch::Job
-  autoload(:Item, './models/item.rb')
-
-  def perform(job, client, records, state)
-    state_bool = state == 'active' ? true : false
-    Item.where(sfdc_id: records).each do |item|
-      wrule = Restforce::SObject.build(JSON.parse(item.obj_hash), client)
-      result = client.update('WorkflowRule', Id: wrule.Id, Metadata: {  actions: wrule.Metadata['actions'],
-                                                                        active: state_bool,
-                                                                        booleanFilter: wrule.Metadata['booleanFilter'],
-                                                                        criteriaItems: wrule.Metadata['criteriaItems'],
-                                                                        description: wrule.Metadata['description'],
-                                                                        formula: wrule.Metadata['formula'],
-                                                                        fullName: wrule.Metadata['fullName'],
-                                                                        triggerType: wrule.Metadata['triggerType'],
-                                                                        workflowTimeTriggers: wrule.Metadata['workflowTimeTriggers'] })
-      item.update(status: state) if result
-    end
-    job[:wr_status] = 'Complete'
-    job.save
-  end
-end
-
-class UpdateValidationRuleWorker
-  include SuckerPunch::Job
-  autoload(:Item, './models/item.rb')
-
-  def perform(job, client, records, state)
-    state_bool = state == 'active' ? true : false
-    Item.where(sfdc_id: records).each do |item|
-      vrule = Restforce::SObject.build(JSON.parse(item.obj_hash), client)
-      result = client.update!('ValidationRule', Id: vrule.Id, Metadata: { active: state_bool,
-                                                description: vrule.Metadata['description'],
-                                                errorConditionFormula: vrule.Metadata['errorConditionFormula'],
-                                                errorDisplayField: vrule.Metadata['errorDisplayField'],
-                                                errorMessage: vrule.Metadata['errorMessage'],
-                                                fullName: vrule.Metadata['fullName'] })
-      item.update(status: state) if result
-    end
-    job[:vr_status] = 'Complete'
-    job.save
-  end
-end
-
-class UpdateProcessBuilderWorker
-  include SuckerPunch::Job
-  autoload(:Item, './models/item.rb')
-
-  def perform(job, client, records, state)
-    Item.where(sfdc_id: records).each do |item|
-      pb = Restforce::SObject.build(JSON.parse(item.obj_hash), client)
-      avn = state == 'active' ? pb.VersionNumber : 0
-      result = client.update!('FlowDefinition', Id: pb.DefinitionId, Metadata: { activeVersionNumber: avn })
-      item.update(status: state) if result
-    end
-    job[:pb_status] = 'Complete'
-    job.save
-  end
-end
+require_relative 'models/init'
+require_relative 'workers'
 
 class Switcher < Sinatra::Application
-  autoload(:Job, './models/job.rb')
-  autoload(:Item, './models/item.rb')
 
   def self.get_client(environment)
     config = YAML.load_file("/users/scottkostojohn/documents/source/training/switcher2/config/#{environment}.yaml")
@@ -147,29 +24,6 @@ class Switcher < Sinatra::Application
   end
 
   configure do
-    `rm jobs.db`
-    # database = SQLite3::Database.new('jobs.db')
-    # DB = Sequel.connect('sqlite://jobs.db')
-    DB = Sequel.connect(adapter: :postgres, database: 'switcher', host: 'localhost', user: 'scottkostojohn')
-    DB.drop_table?(:items)
-    DB.drop_table?(:jobs)
-    DB.create_table :jobs do
-      primary_key :id
-      String :wr_status
-      String :vr_status
-      String :pb_status
-      Timestamp :created
-    end
-    DB.create_table :items do
-      primary_key :id
-      String    :type
-      String    :name
-      String    :sfdc_id
-      Text      :obj_hash
-      Timestamp  :created
-      String    :status
-      foreign_key :job_id, :jobs
-    end
     enable :sessions
   end
 
