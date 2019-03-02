@@ -107,59 +107,71 @@ class FetchProcessBuilderWorker < FetchWorker
   end
 end
 
-class UpdateWorkflowRuleWorker
+class UpdateWorker
   include SuckerPunch::Job
 
   def perform(job, client, records, state)
-    state_bool = state == 'active' ? true : false
     Item.where(sfdc_id: records).each do |item|
-      wrule = Restforce::SObject.build(JSON.parse(item.obj_hash), client)
-      result = client.update('WorkflowRule', Id: wrule.Id, Metadata: {  actions: wrule.Metadata['actions'],
-                                                                        active: state_bool,
-                                                                        booleanFilter: wrule.Metadata['booleanFilter'],
-                                                                        criteriaItems: wrule.Metadata['criteriaItems'],
-                                                                        description: wrule.Metadata['description'],
-                                                                        formula: wrule.Metadata['formula'],
-                                                                        fullName: wrule.Metadata['fullName'],
-                                                                        triggerType: wrule.Metadata['triggerType'],
-                                                                        workflowTimeTriggers: wrule.Metadata['workflowTimeTriggers'] })
+      curr_obj = Restforce::SObject.build(JSON.parse(item.obj_hash), client)
+      result = update_object(client, curr_obj, state)
       item.update(status: state) if result
     end
+    update_job(job)
+  end
+
+  def update_object(client, object, state)
+    raise NotImplementedError
+  end
+
+  def update_job(job)
+    raise NotImplementedError
+  end
+end
+
+class UpdateWorkflowRuleWorker < UpdateWorker
+  def update_object(client, object, state)
+    state_bool = state == 'active' ? true : false
+    client.update('WorkflowRule', Id: object.Id, Metadata: {  actions: object.Metadata['actions'],
+                                                             active: state_bool,
+                                                             booleanFilter: object.Metadata['booleanFilter'],
+                                                             criteriaItems: object.Metadata['criteriaItems'],
+                                                             description: object.Metadata['description'],
+                                                             formula: object.Metadata['formula'],
+                                                             fullName: object.Metadata['fullName'],
+                                                             triggerType: object.Metadata['triggerType'],
+                                                             workflowTimeTriggers: object.Metadata['workflowTimeTriggers'] })
+  end
+
+  def update_job(job)
     job[:wr_status] = 'Complete'
     job.save
   end
 end
 
-class UpdateValidationRuleWorker
-  include SuckerPunch::Job
-
-  def perform(job, client, records, state)
+class UpdateValidationRuleWorker < UpdateWorker
+  def update_object(client, object, state)
     state_bool = state == 'active' ? true : false
-    Item.where(sfdc_id: records).each do |item|
-      vrule = Restforce::SObject.build(JSON.parse(item.obj_hash), client)
-      result = client.update!('ValidationRule', Id: vrule.Id, Metadata: { active: state_bool,
-                                                description: vrule.Metadata['description'],
-                                                errorConditionFormula: vrule.Metadata['errorConditionFormula'],
-                                                errorDisplayField: vrule.Metadata['errorDisplayField'],
-                                                errorMessage: vrule.Metadata['errorMessage'],
-                                                fullName: vrule.Metadata['fullName'] })
-      item.update(status: state) if result
-    end
+    client.update!('ValidationRule', Id: object.Id, Metadata: { active: state_bool,
+                                                                description: object.Metadata['description'],
+                                                                errorConditionFormula: object.Metadata['errorConditionFormula'],
+                                                                errorDisplayField: object.Metadata['errorDisplayField'],
+                                                                errorMessage: object.Metadata['errorMessage'],
+                                                                fullName: object.Metadata['fullName'] })
+  end
+
+  def update_job(job)
     job[:vr_status] = 'Complete'
     job.save
   end
 end
 
-class UpdateProcessBuilderWorker
-  include SuckerPunch::Job
+class UpdateProcessBuilderWorker < UpdateWorker
+  def update_object(client, object, state)
+    avn = state == 'active' ? object.VersionNumber : 0
+    client.update!('FlowDefinition', Id: object.DefinitionId, Metadata: { activeVersionNumber: avn })
+  end
 
-  def perform(job, client, records, state)
-    Item.where(sfdc_id: records).each do |item|
-      pb = Restforce::SObject.build(JSON.parse(item.obj_hash), client)
-      avn = state == 'active' ? pb.VersionNumber : 0
-      result = client.update!('FlowDefinition', Id: pb.DefinitionId, Metadata: { activeVersionNumber: avn })
-      item.update(status: state) if result
-    end
+  def update_job(job)
     job[:pb_status] = 'Complete'
     job.save
   end
