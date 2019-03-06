@@ -12,4 +12,5 @@ gem 'sqlite3'
 gem 'sequel'
 gem 'pry-byebug'
 gem 'minitest'
-gem 'minitest-stub_any_instance'
+gem 'mocha'
+

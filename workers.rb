@@ -14,6 +14,7 @@ class FetchWorker
   end
 
   private
+
   def get_ids(client, object)
     raise NotImplementedError
   end
